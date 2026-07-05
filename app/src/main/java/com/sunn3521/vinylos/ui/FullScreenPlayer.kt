@@ -3,6 +3,7 @@ package com.sunn3521.vinylos.ui
 import androidx.compose.animation.animateColorAsState
 import androidx.compose.animation.core.Spring
 import androidx.compose.animation.core.spring
+import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.*
@@ -16,8 +17,10 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.blur
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
@@ -28,6 +31,35 @@ import androidx.compose.ui.unit.sp
 import coil.compose.AsyncImage
 import com.sunn3521.vinylos.data.model.Song
 import com.sunn3521.vinylos.player.MusicService
+
+@Composable
+fun FFTVisualizer(
+    magnitudes: List<Float>,
+    color: Color,
+    modifier: Modifier = Modifier
+) {
+    Canvas(modifier = modifier) {
+        val width = size.width
+        val height = size.height
+        val barCount = magnitudes.size.coerceAtLeast(1)
+        val barWidth = width / barCount
+        
+        magnitudes.forEachIndexed { index, magnitude ->
+            val x = index * barWidth + (barWidth / 2)
+            // Scaling magnitude (assuming raw hypot values are around 0-60 like in LockVisualizer)
+            val normalizedHeight = (magnitude / 60f).coerceIn(0.1f, 1f)
+            val barHeight = normalizedHeight * height
+            
+            drawLine(
+                color = color,
+                start = Offset(x, height),
+                end = Offset(x, height - barHeight),
+                strokeWidth = barWidth * 0.8f,
+                cap = StrokeCap.Round
+            )
+        }
+    }
+}
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -40,7 +72,6 @@ fun FullScreenPlayer(
 ) {
     val song = musicService.currentSong ?: return
     
-    // We can reuse parts of the dynamic background logic here if needed
     Box(
         modifier = Modifier
             .fillMaxSize()
@@ -150,6 +181,13 @@ fun FullScreenPlayer(
 
             Spacer(Modifier.weight(1f))
 
+            // 🔹 Mini Visualizer
+            FFTVisualizer(
+                magnitudes = musicService.fftMagnitudes,
+                color = visualizerSettings.color.copy(alpha = 0.5f),
+                modifier = Modifier.height(60.dp).fillMaxWidth().padding(bottom = 16.dp)
+            )
+
             // 🔹 Controls
             Row(
                 verticalAlignment = Alignment.CenterVertically,
@@ -188,13 +226,6 @@ fun FullScreenPlayer(
                     )
                 }
             }
-            
-            // Optional: You can add the mini visualizer here as requested
-            FFTVisualizer(
-                magnitudes = musicService.fftMagnitudes,
-                color = visualizerSettings.color.copy(alpha = 0.5f),
-                modifier = Modifier.height(40.dp).fillMaxWidth().padding(bottom = 16.dp)
-            )
         }
     }
 }
